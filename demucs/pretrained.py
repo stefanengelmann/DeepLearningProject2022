@@ -28,7 +28,7 @@ PRETRAINED_MODELS = {
 }
 
 SOURCES = ["drums", "bass", "other", "vocals"]
-
+# SOURCES = ["p1","p2"]
 
 def get_url(name):
     sig = PRETRAINED_MODELS[name]
