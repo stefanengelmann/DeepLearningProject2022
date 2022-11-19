@@ -27,8 +27,8 @@ PRETRAINED_MODELS = {
     'demucs_unittest': '09ebc15f',
 }
 
-SOURCES = ["drums", "bass", "other", "vocals"]
-# SOURCES = ["p1","p2"]
+#SOURCES = ["drums", "bass", "other", "vocals"]
+SOURCES = ["s1","s2"]
 
 def get_url(name):
     sig = PRETRAINED_MODELS[name]

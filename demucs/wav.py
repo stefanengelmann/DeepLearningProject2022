@@ -20,17 +20,25 @@ from torch.nn import functional as F
 from .audio import convert_audio_channels
 from .compressed import get_musdb_tracks
 
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
 MIXTURE = "mixture"
 EXT = ".wav"
 
 
-def _track_metadata(track, sources):
+def _track_metadata(track):
     track_length = None
     track_samplerate = None
-    for source in sources + [MIXTURE]:
-        file = track / f"{source}{EXT}"
+    print(f"Length according to metadata CSV: {track[-1]}")
+    for idx,source in enumerate(track[:-1]):
+        #file = track / f"{source}{EXT}"
+        file = Path(source)
         info = ta.info(str(file))
         length = info.num_frames
+        print(f"Length according to metadata builder: {track[-1]}")
+        print(f"Sample rate according to metadata builder: {info.sample_rate}")
+        print("-----")
         if track_length is None:
             track_length = length
             track_samplerate = info.sample_rate
@@ -42,7 +50,7 @@ def _track_metadata(track, sources):
             raise ValueError(
                 f"Invalid sample rate for file {file}: "
                 f"expecting {track_samplerate} but got {info.sample_rate}.")
-        if source == MIXTURE:
+        if idx == 0:
             wav, _ = ta.load(str(file))
             wav = wav.mean(0)
             mean = wav.mean().item()
@@ -51,16 +59,42 @@ def _track_metadata(track, sources):
     return {"length": length, "mean": mean, "std": std, "samplerate": track_samplerate}
 
 
-def _build_metadata(path, sources):
-    meta = {}
+def _build_metadata(path):
+    meta_train = {}
+    meta_valid = {}
     path = Path(path)
-    for root, folders, files in os.walk(path, followlinks=True):
-        root = Path(root)
-        if root.name.startswith('.') or folders or root == path:
-            continue
-        name = str(root.relative_to(path))
-        meta[name] = _track_metadata(root, sources)
-    return meta
+
+    metadata_csv = path / "metadata" / "mixture_train-100_mix_clean.csv" 
+    df = pd.read_csv(metadata_csv)
+    df=df.to_numpy()
+    #n_rows = df.shape[0]
+    n_rows = 10 # Temp
+    train_size=0.8
+    train_rows,valid_rows = train_test_split(range(n_rows),train_size=train_size)
+    
+    # Generate train metadata
+    for row in train_rows: #range(df.shape[0])
+        ID = df[row,0]
+        meta_train[ID]=_track_metadata(df[row,1:])
+
+    # Generate valid metadata
+    for row in valid_rows: #range(df.shape[0])
+        ID = df[row,0]
+        meta_valid[ID]=_track_metadata(df[row,1:])
+    
+    return meta_train,meta_valid
+
+
+
+
+    #print(f"Path in _build_metadata function: {path}")
+    #for root, folders, files in os.walk(path, followlinks=True):
+    #    root = Path(root)
+    #    if root.name.startswith('.') or folders or root == path:
+    #        continue
+    #    name = str(root.relative_to(path))
+    #    meta[name] = _track_metadata(root, sources)
+    #return meta
 
 
 class Wavset:
@@ -102,10 +136,11 @@ class Wavset:
         return sum(self.num_examples)
 
     def get_file(self, name, source):
-        return self.root / name / f"{source}{EXT}"
+        return self.root / "train-100" / source / f"{name}{EXT}"
 
     def __getitem__(self, index):
         for name, examples in zip(self.metadata, self.num_examples):
+        
             if index >= examples:
                 index -= examples
                 continue
@@ -137,20 +172,30 @@ class Wavset:
 def get_wav_datasets(args, samples, sources):
     sig = hashlib.sha1(str(args.wav).encode()).hexdigest()[:8]
     metadata_file = args.metadata / (sig + ".json")
-    train_path = args.wav / "train"
-    valid_path = args.wav / "valid"
-    if not metadata_file.is_file() and args.rank == 0:
-        train = _build_metadata(train_path, sources)
-        valid = _build_metadata(valid_path, sources)
-        json.dump([train, valid], open(metadata_file, "w"))
+    #metadata_file = args.metadata / ("mixture_train-100_mix_clean" + ".csv") 
+    #train_path = args.wav # input should be: E:\Libri2Mix\wav8k\max
+    #valid_path = args.wav # input should be: E:\Libri2Mix\wav8k\max
+    root = args.wav # input should be: E:\Libri2Mix\wav8k\max
+    print(f"Root path: {root}")
+    #print(f"Train path: {train_path}")
+    #print(f"Validation path: {valid_path}")
+    if not metadata_file.is_file() or args.rank == 0:
+        metadata_train,metadata_valid = _build_metadata(root)
+        json.dump([metadata_train,metadata_valid], open(metadata_file, "w"))
+        #train = _build_metadata(train_path, sources)
+        #valid = _build_metadata(valid_path, sources)
+        #json.dump([train, valid], open(metadata_file, "w"))
     if args.world_size > 1:
         distributed.barrier()
-    train, valid = json.load(open(metadata_file))
-    train_set = Wavset(train_path, train, sources,
+    metadata_train,metadata_valid = json.load(open(metadata_file))
+    #train, valid = json.load(open(metadata_file))
+
+    
+    train_set = Wavset(root, metadata_train, sources,
                        length=samples, stride=args.data_stride,
                        samplerate=args.samplerate, channels=args.audio_channels,
                        normalize=args.norm_wav)
-    valid_set = Wavset(valid_path, valid, [MIXTURE] + sources,
+    valid_set = Wavset(root, metadata_valid, [MIXTURE] + sources,
                        samplerate=args.samplerate, channels=args.audio_channels,
                        normalize=args.norm_wav)
     return train_set, valid_set
