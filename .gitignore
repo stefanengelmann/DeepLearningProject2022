@@ -12,3 +12,8 @@ Session.vim
 /notebooks
 /separated
 /metadata
+/librimix
+*.csv
+*.json
+*.xml
+*.DS_Store
