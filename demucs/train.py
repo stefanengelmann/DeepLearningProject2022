@@ -49,6 +49,8 @@ def train_model(epoch,
                        unit=" batch")
         total_loss = 0
         for idx, sources in enumerate(tq):
+            print(f"idx: {idx}")
+            print(f"sources: {sources}" )
             if len(sources) < batch_size:
                 # skip uncomplete batch for augment.Remix to work properly
                 continue

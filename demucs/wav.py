@@ -23,22 +23,18 @@ from .compressed import get_musdb_tracks
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-MIXTURE = "mixture"
+MIXTURE = "mix_clean"
 EXT = ".wav"
 
 
 def _track_metadata(track):
     track_length = None
     track_samplerate = None
-    print(f"Length according to metadata CSV: {track[-1]}")
     for idx,source in enumerate(track[:-1]):
         #file = track / f"{source}{EXT}"
         file = Path(source)
         info = ta.info(str(file))
         length = info.num_frames
-        print(f"Length according to metadata builder: {track[-1]}")
-        print(f"Sample rate according to metadata builder: {info.sample_rate}")
-        print("-----")
         if track_length is None:
             track_length = length
             track_samplerate = info.sample_rate
@@ -68,7 +64,7 @@ def _build_metadata(path):
     df = pd.read_csv(metadata_csv)
     df=df.to_numpy()
     #n_rows = df.shape[0]
-    n_rows = 10 # Temp
+    n_rows = 500 # Temp
     train_size=0.8
     train_rows,valid_rows = train_test_split(range(n_rows),train_size=train_size)
     
@@ -144,7 +140,9 @@ class Wavset:
             if index >= examples:
                 index -= examples
                 continue
+            print(f"Name: {name}")
             meta = self.metadata[name]
+            print(f"Meta: {meta}")
             num_frames = -1
             offset = 0
             if self.length is not None:
@@ -179,7 +177,8 @@ def get_wav_datasets(args, samples, sources):
     print(f"Root path: {root}")
     #print(f"Train path: {train_path}")
     #print(f"Validation path: {valid_path}")
-    if not metadata_file.is_file() or args.rank == 0:
+    if not metadata_file.is_file() and args.rank == 0:
+        print("Her?")
         metadata_train,metadata_valid = _build_metadata(root)
         json.dump([metadata_train,metadata_valid], open(metadata_file, "w"))
         #train = _build_metadata(train_path, sources)
