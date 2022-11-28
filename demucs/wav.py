@@ -140,9 +140,7 @@ class Wavset:
             if index >= examples:
                 index -= examples
                 continue
-            print(f"Name: {name}")
             meta = self.metadata[name]
-            print(f"Meta: {meta}")
             num_frames = -1
             offset = 0
             if self.length is not None:

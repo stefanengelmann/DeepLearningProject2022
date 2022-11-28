@@ -167,11 +167,11 @@ def main():
             done.unlink()
 
     augment = [Shift(args.data_stride)]
-    if args.augment:
-        augment += [FlipSign(), FlipChannels(), Scale(),
-                    Remix(group_size=args.remix_group_size)]
-    augment = nn.Sequential(*augment).to(device)
-    print("Agumentation pipeline:", augment)
+    # if args.augment:
+    #     augment += [FlipSign(), FlipChannels(), Scale(),
+    #                 Remix(group_size=args.remix_group_size)]
+    # augment = nn.Sequential(*augment).to(device)
+    # print("Augmentation pipeline:", augment)
 
     if args.mse:
         criterion = nn.MSELoss()

@@ -40,7 +40,7 @@ def get_parser():
     parser.add_argument("--samplerate", type=int, default=44100)
     parser.add_argument("--audio_channels", type=int, default=2)
     parser.add_argument("--samples",
-                        default=44100 * 10,
+                        default=8000 * 20,
                         type=int,
                         help="number of samples to feed in")
     parser.add_argument("--data_stride",
