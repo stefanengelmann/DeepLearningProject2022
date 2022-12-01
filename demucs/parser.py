@@ -40,7 +40,7 @@ def get_parser():
     parser.add_argument("--samplerate", type=int, default=44100)
     parser.add_argument("--audio_channels", type=int, default=2)
     parser.add_argument("--samples",
-                        default=8000 * 20,
+                        default=44100* 10,
                         type=int,
                         help="number of samples to feed in")
     parser.add_argument("--data_stride",
@@ -184,7 +184,7 @@ def get_parser():
                         action="store_true",
                         help="Show model architecture, size and exit")
     parser.add_argument("--save_model", action="store_true",
-                        help="Skip traning, just save final model "
+                        help="Skip training, just save final model "
                              "for the current checkpoint value.")
     parser.add_argument("--save_state",
                         help="Skip training, just save state "

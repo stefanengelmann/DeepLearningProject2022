@@ -45,12 +45,12 @@ def main():
     name = get_name(parser, args)
     print(f"Experiment {name}")
 
-    if args.musdb is None and args.rank == 0:
-        print(
-            "You must provide the path to the MusDB dataset with the --musdb flag. "
-            "To download the MusDB dataset, see https://sigsep.github.io/datasets/musdb.html.",
-            file=sys.stderr)
-        sys.exit(1)
+    # if args.musdb is None and args.rank == 0:
+    #     print(
+    #         "You must provide the path to the MusDB dataset with the --musdb flag. "
+    #         "To download the MusDB dataset, see https://sigsep.github.io/datasets/musdb.html.",
+    #         file=sys.stderr)
+    #     sys.exit(1)
 
     eval_folder = args.evals / name
     eval_folder.mkdir(exist_ok=True, parents=True)
@@ -133,6 +133,9 @@ def main():
         saved = th.load(checkpoint, map_location='cpu')
     except IOError:
         saved = SavedState()
+
+
+    print(f"saved.metrics: {saved.metrics}")
 
     optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -306,16 +309,17 @@ def main():
         device = "cpu"
         model.to(device)
     model.eval()
-    evaluate(model, args.musdb, eval_folder,
-             is_wav=args.is_wav,
-             rank=args.rank,
-             world_size=args.world_size,
-             device=device,
-             save=args.save,
-             split=args.split_valid,
-             shifts=args.shifts,
-             overlap=args.overlap,
-             workers=args.eval_workers)
+    if args.test:
+        evaluate(model, args.musdb, eval_folder,
+                is_wav=args.is_wav,
+                rank=args.rank,
+                world_size=args.world_size,
+                device=device,
+                save=args.save,
+                split=args.split_valid,
+                shifts=args.shifts,
+                overlap=args.overlap,
+                workers=args.eval_workers)
     model.to("cpu")
     if args.rank == 0:
         if not (args.test or args.test_pretrained):
