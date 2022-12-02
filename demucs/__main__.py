@@ -67,6 +67,8 @@ def main():
     else:
         device = args.device
 
+    print("Device: ", device)
+
     th.manual_seed(args.seed)
     # Prevents too many threads to be started when running `museval` as it can be quite
     # inefficient on NUMA architectures.
@@ -202,7 +204,7 @@ def main():
 
         valid_set = Rawset(args.raw / "valid", channels=args.audio_channels)
     elif args.wav:
-        train_set, valid_set = get_wav_datasets(args, samples, model.sources)
+        train_set, valid_set, test_set = get_wav_datasets(args, samples, model.sources)
 
         if args.concat:
             if args.is_wav:
@@ -215,7 +217,7 @@ def main():
         train_set, valid_set = get_musdb_wav_datasets(args, samples, model.sources)
     else:
         train_set, valid_set = get_compressed_datasets(args, samples)
-    print("Train set and valid set sizes", len(train_set), len(valid_set))
+    print("Train set, valid set and test set sizes", len(train_set), len(valid_set),len(test_set))
 
     if args.repitch:
         train_set = RepitchedWrapper(

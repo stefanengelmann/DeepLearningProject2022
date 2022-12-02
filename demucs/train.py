@@ -53,11 +53,15 @@ def train_model(epoch,
                 # skip uncomplete batch for augment.Remix to work properly
                 continue
             sources = sources.to(device)
+            #print("sources shape:", sources.shape)
             #sources = augment(sources)
             mix = sources.sum(dim=1)
+            #print("mix shape:", mix.shape)
 
             estimates = model(mix)
+            #print("estimates shape:", estimates.shape)
             sources = center_trim(sources, estimates)
+            #print("sources shape after center trim:", sources.shape)
             loss = criterion(estimates, sources)
             model_size = 0
             if quantizer is not None:

@@ -58,14 +58,15 @@ def _track_metadata(track):
 def _build_metadata(path):
     meta_train = {}
     meta_valid = {}
+    meta_test = {}
     path = Path(path)
 
-    metadata_csv = path / "metadata" / "mixture_train-100_mix_clean.csv" 
-    df = pd.read_csv(metadata_csv)
+    # First, generate train and validation metadata
+    metadata_train_valid_csv = path / "metadata" / "mixture_train-100_mix_clean.csv" # hardcoded for now
+    df = pd.read_csv(metadata_train_valid_csv)
     df=df.to_numpy()
-    #n_rows = df.shape[0]
-    n_rows = 500 # Temp
-    train_size=0.8
+    n_rows = df.shape[0]
+    train_size=0.8 # hardcoded for now
     train_rows,valid_rows = train_test_split(range(n_rows),train_size=train_size)
     
     # Generate train metadata
@@ -77,8 +78,19 @@ def _build_metadata(path):
     for row in valid_rows: #range(df.shape[0])
         ID = df[row,0]
         meta_valid[ID]=_track_metadata(df[row,1:])
+
+    # Next, generate test metadata
+    metadata_test_csv = path / "metadata" / "mixture_test_mix_clean.csv" # hardcoded for now
+    df = pd.read_csv(metadata_test_csv)
+    df=df.to_numpy()
+    n_rows = df.shape[0]
     
-    return meta_train,meta_valid
+    # Generate test metadata
+    for row in range(n_rows): #range(df.shape[0])
+        ID = df[row,0]
+        meta_test[ID]=_track_metadata(df[row,1:])
+    
+    return meta_train, meta_valid, meta_test
 
 
 
@@ -98,7 +110,7 @@ class Wavset:
             self,
             root, metadata, sources,
             length=None, stride=None, normalize=True,
-            samplerate=44100, channels=2):
+            samplerate=44100, channels=2,is_test=False):
         """
         Waveset (or mp3 set for that matter). Can be used to train
         with arbitrary sources. Each track should be one folder inside of `path`.
@@ -120,6 +132,8 @@ class Wavset:
         self.channels = channels
         self.samplerate = samplerate
         self.num_examples = []
+        self.is_test=is_test
+
         for name, meta in self.metadata.items():
             track_length = int(self.samplerate * meta['length'] / meta['samplerate'])
             if length is None or track_length < length:
@@ -132,7 +146,10 @@ class Wavset:
         return sum(self.num_examples)
 
     def get_file(self, name, source):
-        return self.root / "train-100" / source / f"{name}{EXT}"
+        if self.is_test:
+            return self.root / "test" / source / f"{name}{EXT}" 
+        else:
+            return self.root / "train-100" / source / f"{name}{EXT}"
 
     def __getitem__(self, index):
         for name, examples in zip(self.metadata, self.num_examples):
@@ -176,15 +193,14 @@ def get_wav_datasets(args, samples, sources):
     #print(f"Train path: {train_path}")
     #print(f"Validation path: {valid_path}")
     if not metadata_file.is_file() and args.rank == 0:
-        print("Her?")
-        metadata_train,metadata_valid = _build_metadata(root)
-        json.dump([metadata_train,metadata_valid], open(metadata_file, "w"))
+        metadata_train, metadata_valid, metadata_test = _build_metadata(root)
+        json.dump([metadata_train, metadata_valid, metadata_test], open(metadata_file, "w"))
         #train = _build_metadata(train_path, sources)
         #valid = _build_metadata(valid_path, sources)
         #json.dump([train, valid], open(metadata_file, "w"))
     if args.world_size > 1:
         distributed.barrier()
-    metadata_train,metadata_valid = json.load(open(metadata_file))
+    metadata_train, metadata_valid, metadata_test = json.load(open(metadata_file))
     #train, valid = json.load(open(metadata_file))
 
     
@@ -195,7 +211,12 @@ def get_wav_datasets(args, samples, sources):
     valid_set = Wavset(root, metadata_valid, [MIXTURE] + sources,
                        samplerate=args.samplerate, channels=args.audio_channels,
                        normalize=args.norm_wav)
-    return train_set, valid_set
+    
+    test_set = Wavset(root, metadata_test, [MIXTURE] + sources,
+                    samplerate=args.samplerate, channels=args.audio_channels,
+                    normalize=args.norm_wav,is_test=True)
+
+    return train_set, valid_set, test_set
 
 
 def get_musdb_wav_datasets(args, samples, sources):
