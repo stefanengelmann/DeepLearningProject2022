@@ -66,18 +66,25 @@ def _build_metadata(path):
     df = pd.read_csv(metadata_train_valid_csv)
     df=df.to_numpy()
     n_rows = df.shape[0]
-    train_size=0.8 # hardcoded for now
+    train_size=0.95 # hardcoded for now
     train_rows,valid_rows = train_test_split(range(n_rows),train_size=train_size)
     
     # Generate train metadata
+    i=0
     for row in train_rows: #range(df.shape[0])
         ID = df[row,0]
         meta_train[ID]=_track_metadata(df[row,1:])
+        i+=1
+        if i % 100:
+            print(i)
 
     # Generate valid metadata
     for row in valid_rows: #range(df.shape[0])
         ID = df[row,0]
         meta_valid[ID]=_track_metadata(df[row,1:])
+        i+=1
+        if i % 100:
+            print(i)
 
     # Next, generate test metadata
     metadata_test_csv = path / "metadata" / "mixture_test_mix_clean.csv" # hardcoded for now
@@ -89,7 +96,10 @@ def _build_metadata(path):
     for row in range(n_rows): #range(df.shape[0])
         ID = df[row,0]
         meta_test[ID]=_track_metadata(df[row,1:])
-    
+        i+=1
+        if i % 100:
+            print(i)
+            
     return meta_train, meta_valid, meta_test
 
 
