@@ -94,7 +94,11 @@ def main():
         args.epochs = 1
         args.repeat = 0
         if args.test:
+            #import pathlib
+            #temp = pathlib.PosixPath
+            #pathlib.PosixPath = pathlib.WindowsPath
             model = load_model(args.models / args.test)
+            #pathlib.PosixPath = temp
         else:
             model = load_pretrained(args.test_pretrained)
     elif args.tasnet:
@@ -312,7 +316,7 @@ def main():
         model.to(device)
     model.eval()
     if args.test:
-        evaluate(model, args.musdb, eval_folder,
+        evaluate(model, test_set, eval_folder,
                 is_wav=args.is_wav,
                 rank=args.rank,
                 world_size=args.world_size,

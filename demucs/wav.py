@@ -99,7 +99,7 @@ def _build_metadata(path):
         i+=1
         if i % 100:
             print(i)
-            
+
     return meta_train, meta_valid, meta_test
 
 
@@ -189,7 +189,10 @@ class Wavset:
             if self.length:
                 example = example[..., :self.length]
                 example = F.pad(example, (0, self.length - example.shape[-1]))
-            return example
+            if self.is_test:
+                return example, meta['mean'], meta['std'], name
+            else: 
+                return example
 
 
 def get_wav_datasets(args, samples, sources):
