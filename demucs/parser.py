@@ -230,6 +230,7 @@ def get_name(parser, args):
         "show",
         "workers",
         "world_size",
+        "test"
     ])
     parts = []
     name_args = dict(args.__dict__)
