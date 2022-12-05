@@ -74,6 +74,7 @@ def evaluate(model,
             estimates = apply_model(model, mix.to(device),
                                     shifts=shifts, split=split, overlap=overlap)
             estimates = estimates * std + mean
+            references = references * std + mean
 
             estimates = estimates.transpose(1, 2)
             # references = th.stack(
