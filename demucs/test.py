@@ -80,7 +80,8 @@ def evaluate(model,
             #     [th.from_numpy(track.targets[name].audio).t() for name in model.sources])
             #references = convert_audio(references, src_rate,
             #                           model.samplerate, model.audio_channels)
-            references = references.transpose(1, 2).numpy()
+            references = references.transpose(1, 2)
+            references = references.cpu().numpy()
             estimates = estimates.cpu().numpy()
             win = int(1. * model.samplerate)
             hop = int(1. * model.samplerate)
