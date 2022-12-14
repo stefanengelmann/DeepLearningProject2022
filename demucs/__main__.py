@@ -30,6 +30,8 @@ from .utils import (human_seconds, load_model, save_model, get_state,
                     save_state, sizeof_fmt, get_quantizer)
 from .wav import get_wav_datasets, get_musdb_wav_datasets
 
+from .pit_wrapper import PITLossWrapper
+
 
 @dataclass
 class SavedState:
@@ -91,14 +93,17 @@ def main():
         checkpoint.unlink()
 
     if args.test or args.test_pretrained:
-        args.epochs = 1
+        args.epochs = 0
         args.repeat = 0
         if args.test:
-            #import pathlib
-            #temp = pathlib.PosixPath
-            #pathlib.PosixPath = pathlib.WindowsPath
+            if os.name == "nt":
+                import pathlib
+                temp = pathlib.PosixPath
+                pathlib.PosixPath = pathlib.WindowsPath
+
             model = load_model(args.models / args.test)
-            #pathlib.PosixPath = temp
+            if os.name == "nt":
+                pathlib.PosixPath = temp
         else:
             model = load_pretrained(args.test_pretrained)
     elif args.tasnet:
@@ -185,7 +190,9 @@ def main():
     if args.mse:
         criterion = nn.MSELoss()
     else:
-        criterion = nn.L1Loss()
+        #criterion = nn.L1Loss()
+        criterion = PITLossWrapper(nn.L1Loss(reduction='none'), pit_from='perm_avg',device=device)
+    
 
     # Setting number of samples so that all convolution windows are full.
     # Prevents hard to debug mistake with the prediction being shifted compared
@@ -299,7 +306,7 @@ def main():
         saved.optimizer = optimizer.state_dict()
         if args.rank == 0 and not args.test:
             th.save(saved, checkpoint_tmp)
-            checkpoint_tmp.rename(checkpoint)
+            checkpoint_tmp.replace(checkpoint)
 
         print(f"Epoch {epoch:03d}: "
               f"train={train_loss:.8f} valid={valid_loss:.8f} best={best_loss:.4f} ms={ms:.2f}MB "
