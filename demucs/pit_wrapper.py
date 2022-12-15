@@ -104,7 +104,7 @@ class PITLossWrapper(nn.Module):
             # Cannot get pairwise losses from this type of loss.
             # Find best permutation directly.
             min_loss, batch_indices = self.best_perm_from_perm_avg_loss(
-                self.loss_func, est_targets, targets, self.device **kwargs
+                self.loss_func, est_targets, targets, self.device, **kwargs
             )
             # Take the mean over the batch
             mean_loss = torch.mean(min_loss)
@@ -182,12 +182,12 @@ class PITLossWrapper(nn.Module):
                 :class:`torch.Tensor`: The indices of the best permutations.
         """
         n_src = targets.shape[1]
-        perms = torch.tensor(list(permutations(range(n_src))), dtype=torch.long)
+        perms = torch.tensor(list(permutations(range(n_src))), dtype=torch.long).to(device)
         loss_set = torch.stack(
             [loss_func(est_targets[:, perm], targets, **kwargs) for perm in perms], dim=1
         )
         # Indexes and values of min losses for each batch element
-        min_loss, min_loss_idx = torch.min(loss_set, dim=1)
+        min_loss, min_loss_idx = torch.min(loss_set.to(device), dim=1)
         # Permutation indices for each batch.
         batch_indices = torch.stack([perms[m] for m in min_loss_idx], dim=0).to(device)
         return min_loss, batch_indices

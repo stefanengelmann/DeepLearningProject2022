@@ -91,7 +91,7 @@ def _build_metadata(path):
     df = pd.read_csv(metadata_test_csv)
     df=df.to_numpy()
     n_rows = df.shape[0]
-    
+
     # Generate test metadata
     for row in range(n_rows): #range(df.shape[0])
         ID = df[row,0]
@@ -221,7 +221,7 @@ def get_wav_datasets(args, samples, sources):
                        length=samples, stride=args.data_stride,
                        samplerate=args.samplerate, channels=args.audio_channels,
                        normalize=args.norm_wav)
-    valid_set = Wavset(root, metadata_valid, [MIXTURE] + sources,
+    valid_set = Wavset(root, metadata_valid, sources, length=samples,
                        samplerate=args.samplerate, channels=args.audio_channels,
                        normalize=args.norm_wav)
     

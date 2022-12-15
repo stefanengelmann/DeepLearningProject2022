@@ -188,7 +188,8 @@ def main():
     # print("Augmentation pipeline:", augment)
 
     if args.mse:
-        criterion = nn.MSELoss()
+        #criterion = nn.MSELoss()
+        criterion = PITLossWrapper(nn.MSELoss(reduction='none'), pit_from='perm_avg',device=device)
     else:
         #criterion = nn.L1Loss()
         criterion = PITLossWrapper(nn.L1Loss(reduction='none'), pit_from='perm_avg',device=device)
@@ -274,7 +275,9 @@ def main():
             rank=args.rank,
             split=args.split_valid,
             overlap=args.overlap,
-            world_size=args.world_size)
+            world_size=args.world_size,
+            workers=args.workers,
+            batch_size=args.batch_size)
 
         ms = 0
         cms = 0
