@@ -23,15 +23,14 @@ from .compressed import get_musdb_tracks
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-MIXTURE = "mix_clean"
-EXT = ".wav"
+MIXTURE = "mix_clean" #hardcoded for now
+EXT = ".wav" #hardcoded for now
 
 
 def _track_metadata(track):
     track_length = None
     track_samplerate = None
     for idx,source in enumerate(track[:-1]):
-        #file = track / f"{source}{EXT}"
         file = Path(source)
         info = ta.info(str(file))
         length = info.num_frames
@@ -61,59 +60,45 @@ def _build_metadata(path):
     meta_test = {}
     path = Path(path)
 
-    # First, generate train and validation metadata
-    metadata_train_valid_csv = path / "metadata" / "mixture_train-100_mix_clean.csv" # hardcoded for now
-    df = pd.read_csv(metadata_train_valid_csv)
-    df=df.to_numpy()
-    n_rows = df.shape[0]
-    train_size=0.95 # hardcoded for now
-    train_rows,valid_rows = train_test_split(range(n_rows),train_size=train_size)
+    # Get paths
+    metadata_train_csv = path / "metadata" / "mixture_train-100_mix_clean.csv" # hardcoded for now
+    metadata_valid_csv = path / "metadata" / "mixture_dev_mix_clean.csv" # hardcoded for now
+    metadata_test_csv = path / "metadata" / "mixture_test_mix_clean.csv" # hardcoded for now
     
     # Generate train metadata
+    df = pd.read_csv(metadata_train_csv).to_numpy()
+    
     i=0
-    for row in train_rows: #range(df.shape[0])
+    for row in range(df.shape[0]):
         ID = df[row,0]
         meta_train[ID]=_track_metadata(df[row,1:])
         i+=1
-        if i % 100:
-            print(i)
+        if (i % 100) == 0:
+            print("train: ", i)
 
     # Generate valid metadata
-    for row in valid_rows: #range(df.shape[0])
+    df = pd.read_csv(metadata_valid_csv).to_numpy()
+
+    i=0
+    for row in range(df.shape[0]):
         ID = df[row,0]
         meta_valid[ID]=_track_metadata(df[row,1:])
         i+=1
-        if i % 100:
-            print(i)
-
-    # Next, generate test metadata
-    metadata_test_csv = path / "metadata" / "mixture_test_mix_clean.csv" # hardcoded for now
-    df = pd.read_csv(metadata_test_csv)
-    df=df.to_numpy()
-    n_rows = df.shape[0]
+        if (i % 100) == 0:
+            print("valid: ", i)
 
     # Generate test metadata
-    for row in range(n_rows): #range(df.shape[0])
+    df = pd.read_csv(metadata_test_csv).to_numpy()
+
+    i=0
+    for row in range(df.shape[0]):
         ID = df[row,0]
         meta_test[ID]=_track_metadata(df[row,1:])
         i+=1
-        if i % 100:
-            print(i)
+        if (i % 100) == 0:
+            print("test: ", i)
 
     return meta_train, meta_valid, meta_test
-
-
-
-
-    #print(f"Path in _build_metadata function: {path}")
-    #for root, folders, files in os.walk(path, followlinks=True):
-    #    root = Path(root)
-    #    if root.name.startswith('.') or folders or root == path:
-    #        continue
-    #    name = str(root.relative_to(path))
-    #    meta[name] = _track_metadata(root, sources)
-    #return meta
-
 
 class Wavset:
     def __init__(
@@ -225,7 +210,7 @@ def get_wav_datasets(args, samples, sources):
                        samplerate=args.samplerate, channels=args.audio_channels,
                        normalize=args.norm_wav)
     
-    test_set = Wavset(root, metadata_test, [MIXTURE] + sources,
+    test_set = Wavset(root, metadata_test, sources,
                     samplerate=args.samplerate, channels=args.audio_channels,
                     normalize=args.norm_wav,is_test=True)
 

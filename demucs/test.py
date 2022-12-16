@@ -13,13 +13,17 @@ import museval
 import torch as th
 import tqdm
 from scipy.io import wavfile
-from torch import distributed
+from torch import distributed, nn
+
 
 from .audio import convert_audio
 from .utils import apply_model
 
+from itertools import permutations
+import numpy as np
 
-def evaluate(model,
+
+def evaluate(model, 
              test_set,
              eval_folder,
              workers=2,
@@ -30,7 +34,8 @@ def evaluate(model,
              split=False,
              overlap=0.25,
              is_wav=False,
-             world_size=1):
+             world_size=1,
+             is_mse=False):
     """
     Evaluate model using museval. Run the model
     on a single GPU, the bottleneck being the call to museval.
@@ -57,8 +62,9 @@ def evaluate(model,
             # first five minutes to avoid OOM on --upsample models
             streams = streams[..., :15_000_000]
             streams = streams.to(device)
-            references = streams[1:]
-            mix = streams[0]
+            mix = streams.sum(dim=0)
+            references = streams
+            mix = references.sum(dim=0)
             mean = test_set[index][1]
             std = test_set[index][2]
             name = test_set[index][3]
@@ -73,6 +79,24 @@ def evaluate(model,
             #mix = convert_audio(mix, src_rate, model.samplerate, model.audio_channels)
             estimates = apply_model(model, mix.to(device),
                                     shifts=shifts, split=split, overlap=overlap)
+
+            n_src=references.shape[0]
+            perms = th.tensor(list(permutations(range(n_src))), dtype=th.long).to(device)
+
+            if is_mse:
+                testCriterion = nn.MSELoss()
+            else:
+                testCriterion = nn.L1Loss()
+
+            testLoss=testCriterion(estimates,references)
+
+            for perm in perms:
+                estimates_tmp=estimates[perm,...]
+                testLoss_tmp=testCriterion(estimates_tmp,references)
+                if testLoss_tmp<testLoss:
+                    testLoss=th.clone(testLoss_tmp)
+                    estimates=th.clone(estimates_tmp)
+
             estimates = estimates * std + mean
             references = references * std + mean
 

@@ -335,7 +335,8 @@ def main():
                 split=args.split_valid,
                 shifts=args.shifts,
                 overlap=args.overlap,
-                workers=args.eval_workers)
+                workers=args.eval_workers,
+                is_mse=args.mse)
     model.to("cpu")
     if args.rank == 0:
         if not (args.test or args.test_pretrained):
