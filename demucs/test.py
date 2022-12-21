@@ -55,6 +55,8 @@ def evaluate(model,
         p.requires_grad = False
         p.grad = None
 
+    total_loss=0
+
     pendings = []
     with futures.ProcessPoolExecutor(workers or 1) as pool:
         for index in tqdm.tqdm(range(rank, len(test_set), world_size), file=sys.stdout):
@@ -64,7 +66,6 @@ def evaluate(model,
             streams = streams.to(device)
             mix = streams.sum(dim=0)
             references = streams
-            mix = references.sum(dim=0)
             mean = test_set[index][1]
             std = test_set[index][2]
             name = test_set[index][3]
@@ -96,6 +97,11 @@ def evaluate(model,
                 if testLoss_tmp<testLoss:
                     testLoss=th.clone(testLoss_tmp)
                     estimates=th.clone(estimates_tmp)
+
+            total_loss+=testLoss.item()
+            current_loss = total_loss / (1 + index)
+            if (index+1) % 10 == 0:
+                print(f"      Average test loss after {index+1} iterations is {current_loss}")
 
             estimates = estimates * std + mean
             references = references * std + mean

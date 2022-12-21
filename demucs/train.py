@@ -13,6 +13,10 @@ from torch.utils.data.distributed import DistributedSampler
 
 from .utils import apply_model, average_metric, center_trim
 
+from torch import nn
+from itertools import permutations
+import numpy as np
+
 
 def train_model(epoch,
                 dataset,
@@ -97,7 +101,7 @@ def train_model(epoch,
     return current_loss, model_size
 
 
-def validate_model(epoch,
+def validate_model(epoch, #Batched validation (fast)
                    dataset,
                    model,
                    criterion,
@@ -111,7 +115,6 @@ def validate_model(epoch,
                    batch_size=16):
 
     loader = DataLoader(dataset, batch_size=batch_size, num_workers=workers, shuffle=False)
-    current_loss = 0
     
     tq = tqdm.tqdm(loader,
                     ncols=120,
@@ -144,7 +147,7 @@ def validate_model(epoch,
     
     return current_loss
 
-# def validate_model(epoch,
+# def validate_model(epoch,  # Non-batched validation (slow)
 #                    dataset,
 #                    model,
 #                    criterion,
@@ -153,7 +156,9 @@ def validate_model(epoch,
 #                    world_size=1,
 #                    shifts=0,
 #                    overlap=0.25,
-#                    split=False):
+#                    split=False,
+#                    workers=4,
+#                    batch_size=16):
 #     indexes = range(rank, len(dataset), world_size)
 #     tq = tqdm.tqdm(indexes,
 #                    ncols=120,
@@ -161,17 +166,44 @@ def validate_model(epoch,
 #                    leave=False,
 #                    file=sys.stdout,
 #                    unit=" track")
-#     current_loss = 0
+#     #current_loss = 0
+#     total_loss=0
 #     for index in tq:
 #         streams = dataset[index]
 #         # first five minutes to avoid OOM on --upsample models
 #         streams = streams[..., :15_000_000]
 #         streams = streams.to(device)
-#         sources = streams[1:]
-#         mix = streams[0]
+#         sources = streams
+#         mix = streams.sum(dim=0)
 #         estimates = apply_model(model, mix, shifts=shifts, split=split, overlap=overlap)
-#         loss = criterion(estimates, sources)
-#         current_loss += loss.item() / len(indexes)
+
+#         n_src=sources.shape[0]
+#         perms = th.tensor(list(permutations(range(n_src))), dtype=th.long).to(device)
+
+#         testCriterion = nn.L1Loss()
+
+#         testLoss=testCriterion(estimates,sources)
+#         print(testLoss)
+
+#         for perm in perms:
+#             estimates_tmp=estimates[perm,...]
+#             testLoss_tmp=testCriterion(estimates_tmp,sources)
+#             if testLoss_tmp<testLoss:
+#                 testLoss=th.clone(testLoss_tmp)
+#                 estimates=th.clone(estimates_tmp)
+#         print(testLoss)
+#         print("---------------")
+
+
+#         print(testCriterion(estimates,sources))
+#         loss = criterion(estimates.unsqueeze(0), sources.unsqueeze(0))
+#         print(loss)
+#         print("__________________________")
+#         #current_loss += loss.item() / len(indexes)
+#         total_loss += loss.item()
+#         current_loss = total_loss / (1 + index)
+#         tq.set_postfix(loss=f"{current_loss:.4f}")
+
 #         del estimates, streams, sources
 
 #     if world_size > 1:

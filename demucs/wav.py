@@ -21,7 +21,6 @@ from .audio import convert_audio_channels
 from .compressed import get_musdb_tracks
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
 
 MIXTURE = "mix_clean" #hardcoded for now
 EXT = ".wav" #hardcoded for now
@@ -67,9 +66,11 @@ def _build_metadata(path):
     
     # Generate train metadata
     df = pd.read_csv(metadata_train_csv).to_numpy()
+
+    sz=40
     
     i=0
-    for row in range(df.shape[0]):
+    for row in np.random.randint(0,high=df.shape[0],size=int(2*sz)): #range(df.shape[0]):
         ID = df[row,0]
         meta_train[ID]=_track_metadata(df[row,1:])
         i+=1
@@ -80,7 +81,7 @@ def _build_metadata(path):
     df = pd.read_csv(metadata_valid_csv).to_numpy()
 
     i=0
-    for row in range(df.shape[0]):
+    for row in np.random.randint(0,high=df.shape[0],size=sz): #range(df.shape[0]):
         ID = df[row,0]
         meta_valid[ID]=_track_metadata(df[row,1:])
         i+=1
@@ -91,7 +92,7 @@ def _build_metadata(path):
     df = pd.read_csv(metadata_test_csv).to_numpy()
 
     i=0
-    for row in range(df.shape[0]):
+    for row in np.random.randint(0,high=df.shape[0],size=sz): #range(df.shape[0]):
         ID = df[row,0]
         meta_test[ID]=_track_metadata(df[row,1:])
         i+=1
@@ -105,7 +106,7 @@ class Wavset:
             self,
             root, metadata, sources,
             length=None, stride=None, normalize=True,
-            samplerate=44100, channels=2,is_test=False):
+            samplerate=44100, channels=2,is_valid=False,is_test=False):
         """
         Waveset (or mp3 set for that matter). Can be used to train
         with arbitrary sources. Each track should be one folder inside of `path`.
@@ -128,6 +129,7 @@ class Wavset:
         self.samplerate = samplerate
         self.num_examples = []
         self.is_test=is_test
+        self.is_valid=is_valid
 
         for name, meta in self.metadata.items():
             track_length = int(self.samplerate * meta['length'] / meta['samplerate'])
@@ -141,10 +143,12 @@ class Wavset:
         return sum(self.num_examples)
 
     def get_file(self, name, source):
-        if self.is_test:
-            return self.root / "test" / source / f"{name}{EXT}" 
+        if self.is_valid:
+            return self.root / "dev" / source / f"{name}{EXT}" # "hardcoded" for now
+        elif self.is_test:
+            return self.root / "test" / source / f"{name}{EXT}" # "hardcoded" for now
         else:
-            return self.root / "train-100" / source / f"{name}{EXT}"
+            return self.root / "train-100" / source / f"{name}{EXT}" # "hardcoded" for now
 
     def __getitem__(self, index):
         for name, examples in zip(self.metadata, self.num_examples):
@@ -208,7 +212,7 @@ def get_wav_datasets(args, samples, sources):
                        normalize=args.norm_wav)
     valid_set = Wavset(root, metadata_valid, sources, length=samples,
                        samplerate=args.samplerate, channels=args.audio_channels,
-                       normalize=args.norm_wav)
+                       normalize=args.norm_wav,is_valid=True)
     
     test_set = Wavset(root, metadata_test, sources,
                     samplerate=args.samplerate, channels=args.audio_channels,

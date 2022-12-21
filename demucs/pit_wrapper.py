@@ -184,8 +184,9 @@ class PITLossWrapper(nn.Module):
         n_src = targets.shape[1]
         perms = torch.tensor(list(permutations(range(n_src))), dtype=torch.long).to(device)
         loss_set = torch.stack(
-            [loss_func(est_targets[:, perm], targets, **kwargs) for perm in perms], dim=1
+            [loss_func(est_targets[:, perm], targets, **kwargs).mean(dim=(1, 2, 3)) for perm in perms], dim=1
         )
+        
         # Indexes and values of min losses for each batch element
         min_loss, min_loss_idx = torch.min(loss_set.to(device), dim=1)
         # Permutation indices for each batch.

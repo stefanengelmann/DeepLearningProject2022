@@ -93,7 +93,7 @@ def main():
         checkpoint.unlink()
 
     if args.test or args.test_pretrained:
-        args.epochs = 0
+        args.epochs = 1
         args.repeat = 0
         if args.test:
             if os.name == "nt":
@@ -146,7 +146,6 @@ def main():
         saved = SavedState()
 
 
-    print(f"saved.metrics: {saved.metrics}")
 
     optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
 
