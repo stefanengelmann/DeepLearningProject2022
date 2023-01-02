@@ -96,8 +96,7 @@ def train_model(epoch,
         current_loss = average_metric(current_loss)
     return current_loss, model_size
 
-
-def validate_model(epoch,
+def validate_model(epoch, 
                    dataset,
                    model,
                    criterion,
@@ -106,74 +105,35 @@ def validate_model(epoch,
                    world_size=1,
                    shifts=0,
                    overlap=0.25,
-                   split=False, 
-                   workers=4,
-                   batch_size=16):
+                   split=False):
 
-    loader = DataLoader(dataset, batch_size=batch_size, num_workers=workers, shuffle=False)
-    current_loss = 0
-    
-    tq = tqdm.tqdm(loader,
-                    ncols=120,
-                    desc=f"[{epoch:03d}] valid",
-                    leave=False,
-                    file=sys.stdout,
-                    unit=" batch")
-    total_loss = 0
-    for idx, sources in enumerate(tq):
-        sources = sources.to(device)
-        #print("sources shape:", sources.shape)
-        #sources = augment(sources)
-        mix = sources.sum(dim=1)
-        #print("mix shape:", mix.shape)
+    indexes = range(rank, len(dataset), world_size)
+    tq = tqdm.tqdm(indexes,
+                   ncols=120,
+                   desc=f"[{epoch:03d}] valid",
+                   leave=False,
+                   file=sys.stdout,
+                   unit=" track")
 
-        with th.no_grad():
-            estimates = model(mix)
-        #print("estimates shape:", estimates.shape)
-        sources = center_trim(sources, estimates)
-        #print("sources shape after center trim:", sources.shape)
-        loss = criterion(estimates, sources)
-        
+    current_loss=0
+    total_loss=0
+    for index in tq:
+        streams = dataset[index]
+        # first five minutes to avoid OOM on --upsample models
+        streams = streams[..., :15_000_000]
+        streams = streams.to(device)
+        mix = streams.sum(dim=0)
+        sources = streams
+        estimates = apply_model(model, mix.to(device), shifts=shifts, split=split, overlap=overlap)
+        loss = criterion(estimates.unsqueeze(0), sources.unsqueeze(0))
 
         total_loss += loss.item()
-        current_loss = total_loss / (1 + idx)
+        current_loss = total_loss / (1 + index)
         tq.set_postfix(loss=f"{current_loss:.4f}")
 
-        # free some space before next round
-        del sources, mix, estimates, loss
-    
+        del estimates, streams, sources
+
+
+    if world_size > 1:
+        current_loss = average_metric(current_loss, len(indexes))
     return current_loss
-
-# def validate_model(epoch,
-#                    dataset,
-#                    model,
-#                    criterion,
-#                    device="cpu",
-#                    rank=0,
-#                    world_size=1,
-#                    shifts=0,
-#                    overlap=0.25,
-#                    split=False):
-#     indexes = range(rank, len(dataset), world_size)
-#     tq = tqdm.tqdm(indexes,
-#                    ncols=120,
-#                    desc=f"[{epoch:03d}] valid",
-#                    leave=False,
-#                    file=sys.stdout,
-#                    unit=" track")
-#     current_loss = 0
-#     for index in tq:
-#         streams = dataset[index]
-#         # first five minutes to avoid OOM on --upsample models
-#         streams = streams[..., :15_000_000]
-#         streams = streams.to(device)
-#         sources = streams[1:]
-#         mix = streams[0]
-#         estimates = apply_model(model, mix, shifts=shifts, split=split, overlap=overlap)
-#         loss = criterion(estimates, sources)
-#         current_loss += loss.item() / len(indexes)
-#         del estimates, streams, sources
-
-#     if world_size > 1:
-#         current_loss = average_metric(current_loss, len(indexes))
-#     return current_loss

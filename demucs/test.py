@@ -25,6 +25,7 @@ import numpy as np
 
 def evaluate(model, 
              test_set,
+             criterion,
              eval_folder,
              workers=2,
              device="cpu",
@@ -45,15 +46,12 @@ def evaluate(model,
     output_dir.mkdir(exist_ok=True, parents=True)
     json_folder = eval_folder / "results/test"
     json_folder.mkdir(exist_ok=True, parents=True)
-    
-
-    # we load tracks from the original musdb set
-    #test_set = musdb.DB(musdb_path, subsets=["test"], is_wav=is_wav)
-    #src_rate = 44100  # hardcoded for now...
 
     for p in model.parameters():
         p.requires_grad = False
         p.grad = None
+
+    total_loss=0
 
     pendings = []
     with futures.ProcessPoolExecutor(workers or 1) as pool:
@@ -62,7 +60,6 @@ def evaluate(model,
             # first five minutes to avoid OOM on --upsample models
             streams = streams[..., :15_000_000]
             streams = streams.to(device)
-            mix = streams.sum(dim=0)
             references = streams
             mix = references.sum(dim=0)
             mean = test_set[index][1]
@@ -80,22 +77,30 @@ def evaluate(model,
             estimates = apply_model(model, mix.to(device),
                                     shifts=shifts, split=split, overlap=overlap)
 
-            n_src=references.shape[0]
-            perms = th.tensor(list(permutations(range(n_src))), dtype=th.long).to(device)
+            # n_src=references.shape[0]
+            # perms = th.tensor(list(permutations(range(n_src))), dtype=th.long).to(device)
 
-            if is_mse:
-                testCriterion = nn.MSELoss()
-            else:
-                testCriterion = nn.L1Loss()
+            # if is_mse:
+            #     testCriterion = nn.MSELoss()
+            # else:
+            #     testCriterion = nn.L1Loss()
 
-            testLoss=testCriterion(estimates,references)
+            # testLoss=testCriterion(estimates,references)
 
-            for perm in perms:
-                estimates_tmp=estimates[perm,...]
-                testLoss_tmp=testCriterion(estimates_tmp,references)
-                if testLoss_tmp<testLoss:
-                    testLoss=th.clone(testLoss_tmp)
-                    estimates=th.clone(estimates_tmp)
+            # for perm in perms:
+            #     estimates_tmp=estimates[perm,...]
+            #     testLoss_tmp=testCriterion(estimates_tmp,references)
+            #     if testLoss_tmp<testLoss:
+            #         testLoss=th.clone(testLoss_tmp)
+            #         estimates=th.clone(estimates_tmp)
+
+            loss, estimates=criterion(estimates.unsqueeze(0),references.unsqueeze(0),return_est=True)
+            estimates=estimates[0]
+
+            total_loss+=loss.item()
+            current_loss = total_loss / (1 + index)
+            if (index+1) % 10 == 0:
+                print(f" Average test loss after {index+1} iterations is {current_loss}")
 
             estimates = estimates * std + mean
             references = references * std + mean

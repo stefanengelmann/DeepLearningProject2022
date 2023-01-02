@@ -93,7 +93,7 @@ def main():
         checkpoint.unlink()
 
     if args.test or args.test_pretrained:
-        args.epochs = 0
+        args.epochs = 1
         args.repeat = 0
         if args.test:
             if os.name == "nt":
@@ -145,10 +145,7 @@ def main():
     except IOError:
         saved = SavedState()
 
-
-    print(f"saved.metrics: {saved.metrics}")
-
-    optimizer = th.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = th.optim.Adam(model.parameters(), lr=args.lr,weight_decay=4e-5)
 
     quantizer = None
     quantizer = get_quantizer(model, args, optimizer)
@@ -275,9 +272,7 @@ def main():
             rank=args.rank,
             split=args.split_valid,
             overlap=args.overlap,
-            world_size=args.world_size,
-            workers=args.workers,
-            batch_size=args.batch_size)
+            world_size=args.world_size)
 
         ms = 0
         cms = 0
@@ -326,7 +321,8 @@ def main():
         model.to(device)
     model.eval()
     if args.test:
-        evaluate(model, test_set, eval_folder,
+        evaluate(model, test_set, criterion,
+                eval_folder,
                 is_wav=args.is_wav,
                 rank=args.rank,
                 world_size=args.world_size,
