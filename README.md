@@ -6,7 +6,7 @@
 
 The notebook main.ipynb is used to recreate all the results. 
 
-**Data access** The data used to train the model can be accessed [link to data][https://github.com/JorisCos/LibriMix].
+**Data access** The data used to train the model can be accessed [here](https://github.com/JorisCos/LibriMix).
 
 
-**For the initual Demucs used in this project**: [Go to Demucs-voice-seperation][original_demucs].
+**For the initual Demucs used in this project**: [Go to Demucs v2](https://github.com/facebookresearch/demucs/tree/v2).
